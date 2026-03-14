@@ -17,6 +17,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "antigravityTaskSound.showMenu",
+        "title": "Antigravity Task Sound: Settings Menu"
+      },
+      {
         "command": "antigravityTaskSound.testSound",
         "title": "Antigravity Task Sound: Test Sound"
       },
