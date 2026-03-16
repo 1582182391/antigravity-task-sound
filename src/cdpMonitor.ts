@@ -13,15 +13,23 @@ const STOP_BUTTON_SCRIPT = `(() => {
     const panel = document.querySelector('.antigravity-agent-side-panel');
     const scopes = [panel, document].filter(Boolean);
 
-    // 方法1: tooltip-id 检测
+    const isVisible = (el) => {
+        if (!el) return false;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    };
+
+    // 方法1: tooltip-id 检测（需可见）
     for (const scope of scopes) {
         const el = scope.querySelector('[data-tooltip-id="input-send-button-cancel-tooltip"]');
-        if (el) return { isGenerating: true };
+        if (el && isVisible(el)) return { isGenerating: true };
     }
 
-    // 方法2: 按钮文本检测（多语言）
-    const normalize = (value) => (value || '').toLowerCase().replace(/\\s+/g, ' ').trim();
-    const STOP_PATTERNS = [/^stop$/, /^stop generating$/, /^stop response$/, /^停止$/, /^取消$/];
+    // 方法2: 按钮文本检测（需可见）
+    const normalize = (value) => (value || '').toLowerCase().replace(/\\\\s+/g, ' ').trim();
+    const STOP_PATTERNS = [/^stop$/, /^stop generating$/, /^stop response$/, /^停止$/];
     const isStopLabel = (value) => {
         const n = normalize(value);
         return n ? STOP_PATTERNS.some((re) => re.test(n)) : false;
@@ -30,6 +38,7 @@ const STOP_BUTTON_SCRIPT = `(() => {
         const buttons = scope.querySelectorAll('button, [role="button"]');
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
+            if (!isVisible(btn)) continue;
             const labels = [
                 btn.textContent || '',
                 btn.getAttribute('aria-label') || '',
@@ -51,7 +60,7 @@ interface CdpTarget {
 }
 
 export class CdpMonitor {
-    private ws: any = null; // WebSocket instance
+    private ws: any = null;
     private pollTimer: ReturnType<typeof setTimeout> | null = null;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private isRunning = false;
@@ -86,17 +95,14 @@ export class CdpMonitor {
 
     async connect(): Promise<boolean> {
         try {
-            // 1. 获取可调试页面列表
             const targets = await this.getTargets();
             if (!targets || targets.length === 0) {
                 console.log('[TaskSound:CDP] No debug targets found');
                 return false;
             }
 
-            // 2. 找到 Workbench 主窗口（排除 Launchpad）
             const target = targets.find(
                 (t: CdpTarget) => t.type === 'page' && (
-                    // 优先匹配主 workbench（排除 jetski-agent/launchpad）
                     (t.url?.includes('workbench.html') && !t.url?.includes('jetski'))
                 )
             ) || targets.find(
@@ -111,7 +117,6 @@ export class CdpMonitor {
                 return false;
             }
 
-            // 3. 连接 WebSocket
             const WebSocket = require('ws');
             this.ws = new WebSocket(target.webSocketDebuggerUrl);
 

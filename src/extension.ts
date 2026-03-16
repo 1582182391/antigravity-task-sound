@@ -9,18 +9,24 @@ declare const console: any;
 
 let statusBarItem: vscode.StatusBarItem;
 let isEnabled = true;
+let isPersistentAlertEnabled = false;
 let cdpMonitor: CdpMonitor | null = null;
 
 // 防抖：避免短时间内重复触发
 let lastPlayTime = 0;
 const DEBOUNCE_MS = 3000;
 
+// 持续提醒
+let alertIntervalId: NodeJS.Timeout | null = null;
+let isAlertActive = false;
+
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Antigravity Task Sound v2.0 is now active!');
+    console.log('Antigravity Task Sound v2.1 is now active!');
 
     // 读取初始设置
     const config = vscode.workspace.getConfiguration('antigravityTaskSound');
     isEnabled = config.get<boolean>('enabled', true);
+    isPersistentAlertEnabled = config.get<boolean>('persistentAlert', false);
     const cdpPort = config.get<number>('cdpPort', 9000);
     const cdpEnabled = config.get<boolean>('cdpEnabled', true);
 
@@ -45,6 +51,10 @@ export function activate(context: vscode.ExtensionContext) {
                 {
                     label: isEnabled ? '$(bell-slash) 关闭声音通知' : '$(bell) 开启声音通知',
                     description: `当前：${isEnabled ? '已开启' : '已关闭'}`,
+                },
+                {
+                    label: isPersistentAlertEnabled ? '$(close) 关闭持续提醒' : '$(megaphone) 开启持续提醒',
+                    description: `当前：${isPersistentAlertEnabled ? '已开启（循环播放直到确认）' : '已关闭（播放一次）'}`,
                 },
                 {
                     label: '$(play) 测试播放',
@@ -80,8 +90,15 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(
                     isEnabled ? '🔔 声音通知已开启' : '🔕 声音通知已关闭'
                 );
+            } else if (label.includes('持续提醒')) {
+                isPersistentAlertEnabled = !isPersistentAlertEnabled;
+                currentConfig.update('persistentAlert', isPersistentAlertEnabled, vscode.ConfigurationTarget.Global);
+                updateStatusBar();
+                vscode.window.showInformationMessage(
+                    isPersistentAlertEnabled ? '🔁 持续提醒已开启（完成后循环播放直到确认）' : '🔔 持续提醒已关闭（恢复单次播放）'
+                );
             } else if (label.includes('测试播放')) {
-                playSound(context);
+                triggerAlert(context);
             } else if (label.includes('切换音效')) {
                 await showSoundPicker(context);
             } else if (label.includes('调整音量')) {
@@ -95,7 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
                     const port = currentConfig.get<number>('cdpPort', 9000);
                     if (!cdpMonitor) {
                         cdpMonitor = new CdpMonitor(port, () => {
-                            if (isEnabled) { playSound(context); }
+                            if (isEnabled) { triggerAlert(context); }
                         });
                         cdpMonitor.setStatusBar(statusBarItem);
                     }
@@ -113,8 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 测试声音（命令面板也可用）
     context.subscriptions.push(
         vscode.commands.registerCommand('antigravityTaskSound.testSound', () => {
-            playSound(context);
-            vscode.window.showInformationMessage('🔔 正在播放测试声音...');
+            triggerAlert(context);
         })
     );
 
@@ -137,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (cdpMonitor) { cdpMonitor.disconnect(); }
             const port = vscode.workspace.getConfiguration('antigravityTaskSound').get<number>('cdpPort', 9000);
             cdpMonitor = new CdpMonitor(port, () => {
-                if (isEnabled) { playSound(context); }
+                if (isEnabled) { triggerAlert(context); }
             });
             cdpMonitor.setStatusBar(statusBarItem);
             const connected = await cdpMonitor.connect();
@@ -157,6 +173,11 @@ export function activate(context: vscode.ExtensionContext) {
                     .get<boolean>('enabled', true);
                 updateStatusBar();
             }
+            if (e.affectsConfiguration('antigravityTaskSound.persistentAlert')) {
+                isPersistentAlertEnabled = vscode.workspace.getConfiguration('antigravityTaskSound')
+                    .get<boolean>('persistentAlert', false);
+                updateStatusBar();
+            }
             if (e.affectsConfiguration('antigravityTaskSound.cdpPort')) {
                 const newPort = vscode.workspace.getConfiguration('antigravityTaskSound')
                     .get<number>('cdpPort', 9000);
@@ -171,13 +192,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.window.onDidCloseTerminal((_t: vscode.Terminal) => {
-            if (isEnabled && !cdpMonitor?.isConnected()) { playSound(context); }
+            if (isEnabled && !cdpMonitor?.isConnected()) { triggerAlert(context); }
         })
     );
 
     context.subscriptions.push(
         vscode.tasks.onDidEndTaskProcess((_e: vscode.TaskProcessEndEvent) => {
-            if (isEnabled && !cdpMonitor?.isConnected()) { playSound(context); }
+            if (isEnabled && !cdpMonitor?.isConnected()) { triggerAlert(context); }
         })
     );
 
@@ -185,7 +206,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (cdpEnabled) {
         setTimeout(async () => {
             cdpMonitor = new CdpMonitor(cdpPort, () => {
-                if (isEnabled) { playSound(context); }
+                if (isEnabled) { triggerAlert(context); }
             });
             cdpMonitor.setStatusBar(statusBarItem);
             const connected = await cdpMonitor.connect();
@@ -277,15 +298,66 @@ async function showVolumePicker() {
     }
 }
 
+// ======== 触发提醒（根据模式选择单次或持续）========
+function triggerAlert(context: vscode.ExtensionContext) {
+    if (isPersistentAlertEnabled) {
+        playPersistentAlert(context);
+    } else {
+        playSound(context);
+    }
+}
+
+// ======== 持续提醒（循环播放 + 模态弹窗）========
+async function playPersistentAlert(context: vscode.ExtensionContext) {
+    if (isAlertActive) { return; } // 防止重复触发
+    isAlertActive = true;
+
+    const config = vscode.workspace.getConfiguration('antigravityTaskSound');
+    const interval = config.get<number>('persistentAlertInterval', 2000);
+
+    // 立即播放一次
+    playSound(context);
+
+    // 启动循环播放
+    alertIntervalId = setInterval(() => {
+        lastPlayTime = 0; // 重置防抖，确保每次都播放
+        playSound(context);
+    }, interval);
+
+    // 弹出模态对话框（会阻塞直到用户点击）
+    await vscode.window.showInformationMessage(
+        '🔔 AI 任务已完成！',
+        { modal: true, detail: '点击确定停止提示音' },
+        '确定'
+    );
+
+    // 用户点击后停止循环
+    stopPersistentAlert();
+}
+
+function stopPersistentAlert() {
+    if (alertIntervalId) {
+        clearInterval(alertIntervalId);
+        alertIntervalId = null;
+    }
+    isAlertActive = false;
+}
+
 // ======== 状态栏 ========
 function updateStatusBar() {
+    let text = '';
     if (cdpMonitor?.isConnected()) {
-        statusBarItem.text = isEnabled ? '$(bell) CDP 已连接' : '$(bell-slash) CDP 已连接';
+        text = isEnabled ? '$(bell) CDP' : '$(bell-slash) CDP';
     } else {
-        statusBarItem.text = isEnabled ? '$(bell) 声音通知' : '$(bell-slash) 声音通知';
+        text = isEnabled ? '$(bell) 声音' : '$(bell-slash) 声音';
     }
+    if (isPersistentAlertEnabled) {
+        text += ' 🔁';
+    }
+    statusBarItem.text = text;
     statusBarItem.tooltip = [
         `声音通知：${isEnabled ? '已开启' : '已关闭'}`,
+        `持续提醒：${isPersistentAlertEnabled ? '已开启' : '已关闭'}`,
         `CDP：${cdpMonitor?.isConnected() ? '已连接' : '未连接'}`,
         '点击打开设置菜单',
     ].join('\n');
@@ -333,6 +405,7 @@ function playSound(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+    stopPersistentAlert();
     if (cdpMonitor) {
         cdpMonitor.disconnect();
         cdpMonitor = null;

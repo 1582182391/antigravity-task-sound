@@ -1,9 +1,28 @@
 {
   "name": "antigravity-task-sound",
   "displayName": "Antigravity Task Sound",
-  "description": "在 Antigravity AI Agent 完成任务时播放声音通知（支持 CDP 精准检测）",
-  "version": "2.0.0",
+  "description": "Play sound notifications when Antigravity AI Agent completes a response (CDP-based detection)",
+  "version": "2.1.0",
   "publisher": "antigravity-user",
+  "icon": "icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1582182391/antigravity-task-sound"
+  },
+  "homepage": "https://github.com/1582182391/antigravity-task-sound#readme",
+  "bugs": {
+    "url": "https://github.com/1582182391/antigravity-task-sound/issues"
+  },
+  "keywords": [
+    "antigravity",
+    "ai",
+    "notification",
+    "sound",
+    "task",
+    "cdp",
+    "agent"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -62,6 +81,18 @@
           "minimum": 0,
           "maximum": 100,
           "description": "音量 (0-100)"
+        },
+        "antigravityTaskSound.persistentAlert": {
+          "type": "boolean",
+          "default": false,
+          "description": "持续提醒模式：AI回复完成后循环播放提示音，直到点击弹窗确认"
+        },
+        "antigravityTaskSound.persistentAlertInterval": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 500,
+          "maximum": 10000,
+          "description": "持续提醒模式下的播放间隔（毫秒）"
         }
       }
     }

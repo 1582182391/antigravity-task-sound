@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #1a1a2e;
+    font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  }
+  
+  .card {
+    width: 540px;
+    padding: 48px 44px;
+    background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 40%, #24243e 100%);
+    border-radius: 24px;
+    color: #e0e0e0;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  
+  .card::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  
+  .title {
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 32px;
+    line-height: 1.3;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .title .highlight {
+    background: linear-gradient(90deg, #818cf8, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #a78bfa;
+    margin-bottom: 12px;
+    margin-top: 28px;
+    letter-spacing: 1px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .section-title:first-of-type {
+    margin-top: 0;
+  }
+  
+  .text {
+    font-size: 15px;
+    line-height: 1.8;
+    color: #c4c4d4;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .features {
+    list-style: none;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .features li {
+    font-size: 15px;
+    line-height: 2;
+    color: #d4d4e8;
+    padding-left: 8px;
+  }
+  
+  .tech-box {
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 8px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .tech-box .text {
+    font-size: 14px;
+    color: #b4b4cc;
+  }
+  
+  .footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 13px;
+    color: #666;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #a78bfa);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">Antigravity Extension</div>
+  
+  <div class="title">
+    🔔 给 <span class="highlight">Antigravity</span><br>加一个"叮"
+  </div>
+  
+  <div class="section-title">▎起因</div>
+  <div class="text">
+    用 Antigravity 进行 AI 编程的时候，经常发了一个问题就去干别的了，等回来一看——AI 早就回复完了，白白浪费了好几分钟。<br><br>
+    于是我做了一个 Antigravity 扩展，<strong style="color:#fff;">让 AI 回复完成后自动播放提示音</strong>，再也不用一直盯着屏幕等了。
+  </div>
+  
+  <div class="section-title">▎原理</div>
+  <div class="tech-box">
+    <div class="text">
+      扩展通过 <strong style="color:#a78bfa;">Chrome DevTools Protocol</strong> 连接 Antigravity IDE 内部，每 2 秒检测界面上的"停止生成"按钮——<br>
+      按钮在 = AI 还在写<br>
+      按钮消失 = AI 写完了 → 🔔 播放声音！
+    </div>
+  </div>
+  
+  <div class="section-title">▎功能</div>
+  <ul class="features">
+    <li>🎯 精准检测 Antigravity AI 回复完成状态</li>
+    <li>🎵 4 款内置音效可选，也支持自定义</li>
+    <li>🔊 点击状态栏一键调音量、换音效</li>
+    <li>🔄 断线自动重连，稳定可靠</li>
+    <li>💻 跨平台支持 Windows / Mac / Linux</li>
+  </ul>
+  
+  <div class="section-title">▎安装</div>
+  <div class="text">
+    启动参数加一行配置，装上扩展文件，搞定。<br>
+    <strong style="color:#fff;">全程不到一分钟。</strong>
+  </div>
+  
+  <div class="footer">
+    开源项目 · Antigravity Task Sound
+  </div>
+</div>
+</body>
+</html>
