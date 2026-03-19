@@ -77,11 +77,17 @@ export class CdpMonitor {
     private outputChannel: vscode.OutputChannel;
     private connectionAttempts = 0;
     private readonly maxReconnectAttempts = 5;
+    private windowTitle: string;
 
-    constructor(port: number, onComplete: () => void, outputChannel: vscode.OutputChannel) {
+    constructor(port: number, onComplete: () => void, outputChannel: vscode.OutputChannel, windowTitle: string = '') {
         this.port = port;
         this.onComplete = onComplete;
         this.outputChannel = outputChannel;
+        this.windowTitle = windowTitle;
+    }
+
+    updateWindowTitle(title: string) {
+        this.windowTitle = title;
     }
 
     setStatusBar(item: vscode.StatusBarItem) {
@@ -121,17 +127,43 @@ export class CdpMonitor {
                 this.log(`  [${i}] ${t.type} | title: ${t.title || 'N/A'} | url: ${t.url || 'N/A'}`);
             });
 
-            // 修复过滤逻辑：找非 launchpad、非 jetski 的 workbench.html
-            const target = targets.find(
-                (t: CdpTarget) => t.type === 'page' && 
-                                  !t.url?.includes('jetski') && 
-                                  !t.title.includes('Launchpad') &&
-                                  t.url?.includes('workbench.html')
-            ) || targets.find(
-                (t: CdpTarget) => t.type === 'page' && 
-                                  !t.url?.includes('jetski') && 
-                                  !t.title.includes('Launchpad')
-            ) || targets.find((t: CdpTarget) => t.type === 'page') || targets[0];
+            // 多窗口支持：优先匹配当前窗口标题对应的 target
+            const isValidTarget = (t: CdpTarget) => 
+                t.type === 'page' && 
+                !t.url?.includes('jetski') && 
+                !t.title.includes('Launchpad');
+
+            let target: CdpTarget | undefined;
+
+            // 第一优先：匹配当前窗口标题的 workbench.html target
+            if (this.windowTitle) {
+                this.log(`Searching for target matching window title: "${this.windowTitle}"`);
+                target = targets.find(
+                    (t: CdpTarget) => isValidTarget(t) && 
+                                      t.url?.includes('workbench.html') &&
+                                      t.title.includes(this.windowTitle)
+                );
+                // 备选：匹配标题但不限 workbench.html
+                if (!target) {
+                    target = targets.find(
+                        (t: CdpTarget) => isValidTarget(t) && 
+                                          t.title.includes(this.windowTitle)
+                    );
+                }
+                if (target) {
+                    this.log(`Matched target by window title: "${target.title}"`);
+                }
+            }
+
+            // 降级：原先逻辑（单窗口场景）
+            if (!target) {
+                this.log('No window-specific target found, using fallback selection.');
+                target = targets.find(
+                    (t: CdpTarget) => isValidTarget(t) && t.url?.includes('workbench.html')
+                ) || targets.find(
+                    (t: CdpTarget) => isValidTarget(t)
+                ) || targets.find((t: CdpTarget) => t.type === 'page') || targets[0];
+            }
 
             if (!target?.webSocketDebuggerUrl) {
                 this.error('No WebSocket URL found in selected target.');

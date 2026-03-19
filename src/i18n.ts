@@ -50,10 +50,24 @@ const zhCN: Translations = {
     // Sound picker
     'soundPicker.title': '🎵 选择提示音效',
     'soundPicker.placeholder': '选择一个内置音效或自定义文件',
+    'soundPicker.default': '恢复默认音效',
+    'soundPicker.defaultDesc': 'Gentle Chime（内置默认）',
     'soundPicker.customFile': '选择自定义文件...',
     'soundPicker.customFileDesc': '从电脑中选择 .wav 文件',
     'soundPicker.filter': '音效文件',
     'soundPicker.dialogTitle': '选择 WAV 音效文件',
+
+    // Loop interval
+    'menu.loopInterval': '循环时长',
+    'menu.loopIntervalDesc': '持续提醒的播放间隔',
+    'loopInterval.title': '🔁 设置循环时长',
+    'loopInterval.placeholder': '选择循环播放的间隔时长',
+    'loopInterval.auto': '自动（跟随音效时长）',
+    'loopInterval.autoDesc': '播放完一遍后再循环',
+    'loopInterval.seconds': '秒',
+    'msg.loopIntervalSet': '🔁 循环时长已设为 ',
+    'msg.loopIntervalAuto': '🔁 循环时长已设为自动（跟随音效时长）',
+    'msg.soundDefault': '🎵 已恢复默认音效',
 
     // Volume picker
     'volume.title': '🔊 调整音量',
@@ -123,10 +137,24 @@ const en: Translations = {
     // Sound picker
     'soundPicker.title': '🎵 Choose Notification Sound',
     'soundPicker.placeholder': 'Select a built-in sound or custom file',
+    'soundPicker.default': 'Restore default sound',
+    'soundPicker.defaultDesc': 'Gentle Chime (built-in default)',
     'soundPicker.customFile': 'Choose custom file...',
     'soundPicker.customFileDesc': 'Select a .wav file from your computer',
     'soundPicker.filter': 'Sound files',
     'soundPicker.dialogTitle': 'Select WAV Sound File',
+
+    // Loop interval
+    'menu.loopInterval': 'Loop Interval',
+    'menu.loopIntervalDesc': 'Playback interval for persistent alert',
+    'loopInterval.title': '🔁 Set Loop Interval',
+    'loopInterval.placeholder': 'Select loop playback interval',
+    'loopInterval.auto': 'Auto (match sound duration)',
+    'loopInterval.autoDesc': 'Loop after sound finishes playing',
+    'loopInterval.seconds': 's',
+    'msg.loopIntervalSet': '🔁 Loop interval set to ',
+    'msg.loopIntervalAuto': '🔁 Loop interval set to auto (matches sound duration)',
+    'msg.soundDefault': '🎵 Default sound restored',
 
     // Volume picker
     'volume.title': '🔊 Adjust Volume',

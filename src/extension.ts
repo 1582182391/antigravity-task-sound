@@ -14,6 +14,12 @@ let isPersistentAlertEnabled = false;
 let cdpMonitor: CdpMonitor | null = null;
 let outputChannel: vscode.OutputChannel;
 
+// 获取当前窗口标识，用于多窗口 CDP target 匹配
+function getWindowTitle(): string {
+    // VS Code 的 CDP target title 通常包含工作区名称
+    return vscode.workspace.name || '';
+}
+
 function log(msg: string) {
     if (outputChannel) {
         outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${msg}`);
@@ -35,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 初始化语言
     initLanguage();
     
-    log('Antigravity Task Sound v3.0.0 is now active!');
+    log('Antigravity Task Sound v4.0.0 is now active!');
 
     // 读取初始设置
     const config = vscode.workspace.getConfiguration('antigravityTaskSound');
@@ -84,6 +90,10 @@ export function activate(context: vscode.ExtensionContext) {
                     description: `${currentVolume}%`,
                 },
                 {
+                    label: `$(sync) ${t('menu.loopInterval')}`,
+                    description: t('menu.loopIntervalDesc'),
+                },
+                {
                     label: `$(plug) ${t('menu.cdpConnect')}`,
                     description: cdpStatus,
                 },
@@ -122,6 +132,8 @@ export function activate(context: vscode.ExtensionContext) {
                 await showSoundPicker(context);
             } else if (label.includes('settings')) {
                 await showVolumePicker();
+            } else if (label.includes('sync')) {
+                await showLoopIntervalPicker();
             } else if (label.includes('globe')) {
                 await showLanguagePicker();
             } else if (label.includes('plug')) {
@@ -134,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
                     if (!cdpMonitor) {
                         cdpMonitor = new CdpMonitor(port, () => {
                             if (isEnabled) { triggerAlert(context); }
-                        }, outputChannel);
+                        }, outputChannel, getWindowTitle());
                         cdpMonitor.setStatusBar(statusBarItem);
                     }
                     outputChannel.show(true);
@@ -176,7 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
             const port = vscode.workspace.getConfiguration('antigravityTaskSound').get<number>('cdpPort', 9000);
             cdpMonitor = new CdpMonitor(port, () => {
                 if (isEnabled) { triggerAlert(context); }
-            }, outputChannel);
+            }, outputChannel, getWindowTitle());
             cdpMonitor.setStatusBar(statusBarItem);
             
             outputChannel.show(true);
@@ -239,7 +251,7 @@ export function activate(context: vscode.ExtensionContext) {
         setTimeout(async () => {
             cdpMonitor = new CdpMonitor(cdpPort, () => {
                 if (isEnabled) { triggerAlert(context); }
-            }, outputChannel);
+            }, outputChannel, getWindowTitle());
             cdpMonitor.setStatusBar(statusBarItem);
             const connected = await cdpMonitor.connect();
             if (connected) {
@@ -287,28 +299,20 @@ async function showLanguagePicker() {
 
 // ======== 音效选择器 ========
 async function showSoundPicker(context: vscode.ExtensionContext) {
-    const soundsDir = path.join(context.extensionPath, 'sounds');
-    const files: string[] = [];
+    const currentSound = vscode.workspace.getConfiguration('antigravityTaskSound').get<string>('soundFile', '');
+    const isDefault = !currentSound || currentSound.trim() === '';
 
-    try {
-        const entries = fs.readdirSync(soundsDir);
-        for (const entry of entries) {
-            if (entry.endsWith('.wav')) {
-                files.push(entry);
-            }
-        }
-    } catch { /* ignore */ }
-
-    const items: vscode.QuickPickItem[] = files.map(f => ({
-        label: `$(file-media) ${f.replace('.wav', '')}`,
-        description: f,
-        detail: path.join(soundsDir, f),
-    }));
-
-    items.push({
-        label: `$(folder-opened) ${t('soundPicker.customFile')}`,
-        description: t('soundPicker.customFileDesc'),
-    });
+    const items: vscode.QuickPickItem[] = [
+        {
+            label: isDefault ? `$(check) $(music) ${t('soundPicker.default')}` : `$(music) ${t('soundPicker.default')}`,
+            description: t('soundPicker.defaultDesc'),
+            detail: '__DEFAULT__',
+        },
+        {
+            label: `$(folder-opened) ${t('soundPicker.customFile')}`,
+            description: t('soundPicker.customFileDesc'),
+        },
+    ];
 
     const selected = await vscode.window.showQuickPick(items, {
         title: t('soundPicker.title'),
@@ -317,7 +321,11 @@ async function showSoundPicker(context: vscode.ExtensionContext) {
 
     if (!selected) { return; }
 
-    if (selected.label.includes('folder-opened')) {
+    if (selected.detail === '__DEFAULT__') {
+        await vscode.workspace.getConfiguration('antigravityTaskSound')
+            .update('soundFile', '', vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(t('msg.soundDefault'));
+    } else if (selected.label.includes('folder-opened')) {
         const uris = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectMany: false,
@@ -330,10 +338,6 @@ async function showSoundPicker(context: vscode.ExtensionContext) {
                 .update('soundFile', filePath, vscode.ConfigurationTarget.Global);
             vscode.window.showInformationMessage(`${t('msg.soundChanged')}${path.basename(filePath)}`);
         }
-    } else if (selected.detail) {
-        await vscode.workspace.getConfiguration('antigravityTaskSound')
-            .update('soundFile', selected.detail, vscode.ConfigurationTarget.Global);
-        vscode.window.showInformationMessage(`${t('msg.soundChanged')}${selected.description}`);
     }
 }
 
@@ -363,8 +367,68 @@ async function showVolumePicker() {
     }
 }
 
+// ======== 循环时长选择器 ========
+async function showLoopIntervalPicker() {
+    const currentConfig = vscode.workspace.getConfiguration('antigravityTaskSound');
+    const currentInterval = currentConfig.get<number>('persistentAlertInterval', 0);
+
+    const items: vscode.QuickPickItem[] = [
+        {
+            label: currentInterval === 0 ? `$(check) ${t('loopInterval.auto')}` : t('loopInterval.auto'),
+            description: t('loopInterval.autoDesc'),
+            detail: '0',
+        },
+        { label: `5${t('loopInterval.seconds')}`, detail: '5' },
+        { label: `10${t('loopInterval.seconds')}`, detail: '10' },
+        { label: `15${t('loopInterval.seconds')}`, detail: '15' },
+        { label: `20${t('loopInterval.seconds')}`, detail: '20' },
+        { label: `30${t('loopInterval.seconds')}`, detail: '30' },
+        { label: `45${t('loopInterval.seconds')}`, detail: '45' },
+        { label: `60${t('loopInterval.seconds')}`, detail: '60' },
+    ];
+
+    // 标记当前选中的
+    for (const item of items) {
+        if (item.detail && parseInt(item.detail) === currentInterval && currentInterval !== 0) {
+            item.label = `$(check) ${item.label}`;
+        }
+    }
+
+    const selected = await vscode.window.showQuickPick(items, {
+        title: t('loopInterval.title'),
+        placeHolder: t('loopInterval.placeholder'),
+    });
+
+    if (selected && selected.detail !== undefined) {
+        const seconds = parseInt(selected.detail);
+        await currentConfig.update('persistentAlertInterval', seconds, vscode.ConfigurationTarget.Global);
+        if (seconds === 0) {
+            vscode.window.showInformationMessage(t('msg.loopIntervalAuto'));
+        } else {
+            vscode.window.showInformationMessage(`${t('msg.loopIntervalSet')}${seconds}${t('loopInterval.seconds')}`);
+        }
+    }
+}
+
+// ======== 获取 WAV 文件时长（秒） ========
+function getWavDuration(filePath: string): number {
+    try {
+        const buf = fs.readFileSync(filePath);
+        if (buf.length < 44) { return 6; } // 默认 6 秒
+        const sampleRate = buf.readUInt32LE(24);
+        const numChannels = buf.readUInt16LE(22);
+        const bitsPerSample = buf.readUInt16LE(34);
+        const bytesPerSample = numChannels * (bitsPerSample / 8);
+        const dataSize = buf.length - 44;
+        return dataSize / (sampleRate * bytesPerSample);
+    } catch {
+        return 6; // 默认 6 秒
+    }
+}
+
 // ======== 触发提醒（根据模式选择单次或持续）========
 function triggerAlert(context: vscode.ExtensionContext) {
+    log(`triggerAlert called (persistent=${isPersistentAlertEnabled})`);
     if (isPersistentAlertEnabled) {
         playPersistentAlert(context);
     } else {
@@ -378,7 +442,23 @@ async function playPersistentAlert(context: vscode.ExtensionContext) {
     isAlertActive = true;
 
     const config = vscode.workspace.getConfiguration('antigravityTaskSound');
-    const interval = config.get<number>('persistentAlertInterval', 2000);
+    const intervalSetting = config.get<number>('persistentAlertInterval', 0);
+
+    // 确定循环间隔
+    let intervalMs: number;
+    if (intervalSetting === 0) {
+        // 自动模式：跟随音效时长
+        const customSound = config.get<string>('soundFile', '');
+        const soundPath = (customSound && customSound.trim() !== '')
+            ? customSound
+            : path.join(context.extensionPath, 'sounds', 'gentle-chime.wav');
+        const duration = getWavDuration(soundPath);
+        intervalMs = Math.max(Math.ceil(duration * 1000) + 500, 1000); // 音效时长 + 0.5秒缓冲
+        log(`Persistent alert: auto interval = ${intervalMs}ms (sound duration: ${duration.toFixed(1)}s)`);
+    } else {
+        intervalMs = intervalSetting * 1000;
+        log(`Persistent alert: fixed interval = ${intervalMs}ms`);
+    }
 
     // 立即播放一次
     playSound(context);
@@ -387,7 +467,7 @@ async function playPersistentAlert(context: vscode.ExtensionContext) {
     alertIntervalId = setInterval(() => {
         lastPlayTime = 0; // 重置防抖，确保每次都播放
         playSound(context);
-    }, interval);
+    }, intervalMs);
 
     // 弹出模态对话框（会阻塞直到用户点击）
     await vscode.window.showInformationMessage(
@@ -420,7 +500,7 @@ function updateStatusBar() {
         text += ' 🔁';
     }
     
-    text += ' v3.0.0';
+    text += ' v4.0.0';
     
     statusBarItem.text = text;
     statusBarItem.tooltip = [
@@ -433,7 +513,10 @@ function updateStatusBar() {
 // ======== 播放声音 ========
 function playSound(context: vscode.ExtensionContext) {
     const now = Date.now();
-    if (now - lastPlayTime < DEBOUNCE_MS) { return; }
+    if (now - lastPlayTime < DEBOUNCE_MS) {
+        log(`playSound skipped: debounce (${now - lastPlayTime}ms < ${DEBOUNCE_MS}ms)`);
+        return;
+    }
     lastPlayTime = now;
 
     const config = vscode.workspace.getConfiguration('antigravityTaskSound');
@@ -443,8 +526,16 @@ function playSound(context: vscode.ExtensionContext) {
     let soundPath: string;
     if (customSoundFile && customSoundFile.trim() !== '') {
         soundPath = customSoundFile;
+        log(`playSound: using custom sound: ${soundPath}`);
     } else {
-        soundPath = path.join(context.extensionPath, 'sounds', 'task-complete.wav');
+        soundPath = path.join(context.extensionPath, 'sounds', 'gentle-chime.wav');
+        log(`playSound: using default sound: ${soundPath}`);
+    }
+
+    // 检查文件是否存在
+    if (!fs.existsSync(soundPath)) {
+        log(`playSound ERROR: sound file not found: ${soundPath}`);
+        return;
     }
 
     const platform = os.platform();
@@ -452,7 +543,8 @@ function playSound(context: vscode.ExtensionContext) {
 
     if (platform === 'win32') {
         const vol = volume / 100;
-        command = `powershell -NoProfile -Command "Add-Type -AssemblyName PresentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Open([uri]'${soundPath.replace(/'/g, "''")}'); $player.Volume = ${vol}; $player.Play(); Start-Sleep -Milliseconds 10000"`;
+        // Open() 是异步的，需等待文件加载完成再 Play()
+        command = `powershell -NoProfile -Command "Add-Type -AssemblyName PresentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Volume = ${vol}; $player.Open([uri]'${soundPath.replace(/'/g, "''")}'); Start-Sleep -Milliseconds 500; $player.Play(); Start-Sleep -Milliseconds 5000"`;
     } else if (platform === 'darwin') {
         const vol = Math.round(volume * 2.55);
         command = `afplay -v ${vol / 255} "${soundPath}"`;
@@ -461,12 +553,16 @@ function playSound(context: vscode.ExtensionContext) {
         command = `paplay --volume=${vol} "${soundPath}"`;
     }
 
+    log(`playSound: executing command (volume=${volume}%, platform=${platform})`);
+
     exec(command, (error: Error | null) => {
         if (error) {
-            console.error('[TaskSound] Failed to play sound:', error.message);
+            log(`playSound ERROR: ${error.message}`);
             if (platform === 'win32') {
                 exec('powershell -NoProfile -Command "[System.Media.SystemSounds]::Asterisk.Play()"');
             }
+        } else {
+            log('playSound: command completed successfully');
         }
     });
 }

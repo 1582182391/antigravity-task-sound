@@ -2,7 +2,7 @@
   "name": "antigravity-task-sound",
   "displayName": "Antigravity Task Sound",
   "description": "Play sound notifications when Antigravity AI Agent completes a response. Supports English & Chinese.",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "publisher": "1582182391",
   "icon": "icon.png",
   "license": "MIT",
@@ -89,10 +89,10 @@
         },
         "antigravityTaskSound.persistentAlertInterval": {
           "type": "number",
-          "default": 2000,
-          "minimum": 500,
-          "maximum": 10000,
-          "description": "Playback interval in persistent alert mode (milliseconds)"
+          "default": 0,
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Loop interval in seconds for persistent alert mode (0 = auto, matches sound duration)"
         },
         "antigravityTaskSound.language": {
           "type": "string",

@@ -13,9 +13,11 @@ When using AI Agent in [Antigravity IDE](https://antigravity.google), this exten
 
 - 🎯 **Precise Detection** — CDP-based monitoring of `workbench.html` page state
 - 🔔 **Auto Notification** — Plays sound when AI completes a response
+- 🔁 **Persistent Alert** — Optional loop playback with configurable interval until confirmed
 - 🎵 **Custom Sounds** — Support for custom `.wav` files and volume control
+- ⏱️ **Smart Loop** — Auto-matches loop interval to sound duration, no overlap
 - 🌐 **Bilingual UI** — English / 中文, switchable in settings
-- 📈 **Output Logging** — Built-in "Antigravity Task Sound" output panel
+- 📈 **Output Logging** — Built-in "Antigravity Task Sound" output panel with detailed diagnostics
 - 🔄 **Auto Reconnect** — Automatic reconnection with IPv4 support
 - 🖥️ **Cross Platform** — Windows / macOS / Linux
 
@@ -54,9 +56,9 @@ Switch language via:
 | Command | Description |
 |---------|------------|
 | `Antigravity Task Sound: Settings Menu` | Open settings menu / 打开设置菜单 |
-| `Antigravuation Task Sound: Test Sound` | Play test sound / 播放测试声音 |
+| `Antigravity Task Sound: Test Sound` | Play test sound / 播放测试声音 |
 | `Antigravity Task Sound: Toggle` | Toggle notification / 切换通知 |
-| `Antigravity Task Sound: Connect CDP f| Manual CDP connect / 手动连接 CDP |
+| `Antigravity Task Sound: Connect CDP` | Manual CDP connect / 手动连接 CDP |
 
 ## ⚙️ Settings / 设置
 
@@ -65,8 +67,10 @@ Switch language via:
 | `enabled` | `true` | Enable/disable notification / 启用/禁用通知 |
 | `cdpEnabled` | `true` | Enable CDP detection / 启用 CDP 检测 |
 | `cdpPort` | `9000` | Remote debugging port / 远程调试端口 |
-| `soundFile` | `""` | Custom .wav path / 自定义音效路径 |
+| `soundFile` | `""` | Custom .wav path (empty = default Gentle Chime) / 自定义音效路径（空=默认） |
 | `volume` | `50` | Volume (0-100) / 音量 |
+| `persistentAlert` | `false` | Loop playback until confirmed / 持续提醒（循环播放直到确认） |
+| `persistentAlertInterval` | `0` | Loop interval in seconds (0 = auto, matches sound duration) / 循环间隔秒数（0=自动） |
 | `language` | `zh-CN` | UI language: `zh-CN` or `en` / 界面语言 |
 
 ## 🔧 How It Works / 工作原理
@@ -84,6 +88,25 @@ Antigravity (Electron)          Extension
        │   Button gone ×3 = Done! │
        │                     🔔 Play sound
 ```
+
+## 📝 Changelog / 更新日志
+
+### v4.0.0
+
+**Bug Fixes / 修复：**
+| 问题 | 修复 |
+|------|------|
+| 默认声音听不到 | 原 `task-complete.wav`（0.3s）改为 `gentle-chime.wav`（6s） |
+| 持续提醒声音叠加 | 循环间隔改为自动匹配音效时长 |
+| 无法切回默认音效 | 音效选择器增加「恢复默认」选项 |
+
+**New Features / 新功能：**
+| 功能 | 说明 |
+|------|------|
+| 循环时长菜单 | 可选自动 / 5s~60s 手动设置 |
+| 自动循环模式 | 读取 WAV 时长，播完再循环，不叠音 |
+| 详细调试日志 | 全链路日志输出到 Output 面板 |
+| 双语支持 | 中英文 UI 可随时切换 |
 
 ## 📝 Build from Source / 从源码构建
 
