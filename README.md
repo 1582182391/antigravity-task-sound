@@ -92,7 +92,24 @@ git clone https://github.com/liukunpeng0316/antigravity-task-sound.git
 cd antigravity-task-sound
 npm install
 npm run compile
-npx @vscode/vsce package --allow    -missing-repository
+npx @vscode/vsce package --allow-missing-repository
+```
+
+## 🤖 AI Auto Setup / AI 自动配置
+
+If you're using an AI coding assistant, paste the following prompt to let it handle the installation automatically:
+
+如果你正在使用 AI 编程助手，可以直接复制以下指令发送给 AI，它会自动帮你完成安装配置：
+
+```
+Please help me install the antigravity-task-sound extension:
+1. Clone: git clone https://github.com/liukunpeng0316/antigravity-task-sound.git
+2. Install dependencies: cd antigravity-task-sound && npm install
+3. Compile TypeScript: npx tsc -p .
+4. Package extension: npx @vscode/vsce package --allow-missing-repository
+5. Install the generated .vsix file via Command Palette → Install from VSIX
+6. Make sure Antigravity is launched with --remote-debugging-port=9000
+7. Reload window and confirm status bar shows "CDP Connected" / "CDP 已连接"
 ```
 
 ## License
