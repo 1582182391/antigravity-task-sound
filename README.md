@@ -1,98 +1,98 @@
 # Antigravity Task Sound 🔔
 
-> 在 Antigravity AI Agent 完成回复时自动播放声音通知
+> Play sound notifications when Antigravity AI Agent completes a response.
+> 在 Antigravity AI Agent 完成回复时自动播放声音通知。
 
-当你在 [Antigravity IDE](https://antigravity.google) 中使用 AI Agent 时，扩展会通过 **Chrome DevTools Protocol (CDP)** 实时检测 AI 是否正在生成回复。一旦 AI 完成回复，自动播放提示音通知你。
+Supports **English** and **Chinese (中文)** — switch anytime in settings.
 
-## ✨ 功能
+When using AI Agent in [Antigravity IDE](https://antigravity.google), this extension detects AI response completion via **Chrome DevTools Protocol (CDP)** and plays a notification sound.
 
-- 🎯 **精准检测** — 通过 CDP 协议精准捕获 `workbench.html` 页面状态，排除后台 worker 干扰
-- 🔔 **自动通知** — AI 回复完成后自动播放提示音
-- 🎵 **自定义音效** — 支持自定义 `.wav` 音效文件和音量调节
-- 📈 **输出日志面板** — 内置 "Antigravity Task Sound" 输出面板，方便查看每次 CDP 连接的详细日志
-- 🔄 **自动重连** — 断开后自动尝试重新连接（强制使用 IPv4 保证兼容性）
-- 🖥️ **跨平台** — Windows / macOS / Linux
+当你在 [Antigravity IDE](https://antigravity.google) 中使用 AI Agent 时，扩展会通过 **CDP 协议** 实时检测 AI 回复状态，完成后自动播放提示音。
 
-## 📦 安装
+## ✨ Features / 功能
 
-### 1. 配置 Antigravity 启动参数
+- 🎯 **Precise Detection** — CDP-based monitoring of `workbench.html` page state
+- 🔔 **Auto Notification** — Plays sound when AI completes a response
+- 🎵 **Custom Sounds** — Support for custom `.wav` files and volume control
+- 🌐 **Bilingual UI** — English / 中文, switchable in settings
+- 📈 **Output Logging** — Built-in "Antigravity Task Sound" output panel
+- 🔄 **Auto Reconnect** — Automatic reconnection with IPv4 support
+- 🖥️ **Cross Platform** — Windows / macOS / Linux
 
+## 📦 Installation / 安装
+
+### 1. Configure Antigravity Launch Arguments / 配置启动参数
+
+Add to your Antigravity shortcut target:
 在 Antigravity 快捷方式的目标末尾添加：
 
 ```
 --remote-debugging-port=9000
 ```
 
-### 2. 安装扩展
+### 2. Install Extension / 安装扩展
 
-下载最新的 `.vsix` 文件，然后在 Antigravity 中：
+Download the latest `.vsix` file, then in Antigravity:
+下载最新的 `.vsix` 文件，然后：
 
 1. `Ctrl+Shift+P` → `Install from VSIX`
-2. 选择下载的 `.vsix` 文件
+2. Select the `.vsix` file / 选择 `.vsix` 文件
 3. `Ctrl+Shift+P` → `Reload Window`
 
-### 3. 开始使用
+### 3. Start Using / 开始使用
 
-扩展启动后会自动连接 CDP。状态栏右下角显示 `CDP 已连接` 即表示工作正常。
+The extension auto-connects to CDP on startup. Status bar shows `CDP Connected` / `CDP 已连接` when ready.
 
-## 🛠️ 命令
+## 🌐 Language / 语言切换
 
-| 命令 | 说明 |
-|------|------|
-| `Antigravity Task Sound: Test Sound` | 播放测试声音 |
-| `Antigravity Task Sound: Toggle` | 开关通知 |
-| `Antigravity Task Sound: Connect CDP` | 手动连接 CDP |
+Switch language via:
+- Click status bar button → `Language / 切换语言`
+- Or: Settings → `antigravityTaskSound.language` → `zh-CN` / `en`
 
-## ⚙️ 设置
+## 🛠️ Commands / 命令
 
-| 设置 | 默认值 | 说明 |
-|------|--------|------|
-| `enabled` | `true` | 启用/禁用通知 |
-| `cdpEnabled` | `true` | 启用 CDP 检测 |
-| `cdpPort` | `9000` | 远程调试端口 |
-| `soundFile` | `""` | 自定义 .wav 音效路径 |
-| `volume` | `50` | 音量 (0-100) |
+| Command | Description |
+|---------|------------|
+| `Antigravity Task Sound: Settings Menu` | Open settings menu / 打开设置菜单 |
+| `Antigravuation Task Sound: Test Sound` | Play test sound / 播放测试声音 |
+| `Antigravity Task Sound: Toggle` | Toggle notification / 切换通知 |
+| `Antigravity Task Sound: Connect CDP f| Manual CDP connect / 手动连接 CDP |
 
-## 🔧 工作原理
+## ⚙️ Settings / 设置
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enabled` | `true` | Enable/disable notification / 启用/禁用通知 |
+| `cdpEnabled` | `true` | Enable CDP detection / 启用 CDP 检测 |
+| `cdpPort` | `9000` | Remote debugging port / 远程调试端口 |
+| `soundFile` | `""` | Custom .wav path / 自定义音效路径 |
+| `volume` | `50` | Volume (0-100) / 音量 |
+| `language` | `zh-CN` | UI language: `zh-CN` or `en` / 界面语言 |
+
+## 🔧 How It Works / 工作原理
 
 ```
-Antigravity (Electron)          扩展
+Antigravity (Electron)          Extension
        │                          │
        │  --remote-debugging-port │
-       │◄─────────────────────────┤  CDP WebSocket 连接
+       │◄─────────────────────────┤  CDP WebSocket
        │                          │
-       │   每 2 秒轮询 DOM        │
-       │   检测"停止按钮"         │
+       │   Poll DOM every 2s      │
+       │   Detect "Stop" button   │
        │                          │
-       │   按钮存在 = AI 生成中    │
-       │   按钮消失 x3 = 完成!    │
-       │                          │
-       │                     🔔 播放声音
+       │   Button visible = AI generating
+       │   Button gone ×3 = Done! │
+       │                     🔔 Play sound
 ```
 
-## 📝 从源码构建
+## 📝 Build from Source / 从源码构建
 
 ```bash
 git clone https://github.com/1582182391/antigravity-task-sound.git
 cd antigravity-task-sound
 npm install
 npm run compile
-npx @vscode/vsce package --allow-missing-repository
-```
-
-## 🤖 AI 自动配置
-
-如果你正在使用 Antigravity AI 编程，可以直接复制以下指令发送给 AI，它会自动帮你完成安装配置：
-
-```
-请帮我安装 antigravity-task-sound 扩展，步骤如下：
-1. 克隆仓库：git clone https://github.com/1582182391/antigravity-task-sound.git
-2. 进入目录并安装依赖：cd antigravity-task-sound && npm install
-3. 编译 TypeScript：npx tsc -p .
-4. 打包扩展：npx @vscode/vsce package --allow-missing-repository
-5. 安装生成的 .vsix 文件：通过命令面板 Install from VSIX
-6. 确认我的 Antigravity 启动参数中包含 --remote-debugging-port=9000
-7. 重新加载窗口，确认右下角状态栏显示"CDP 已连接"
+npx @vscode/vsce package --allow    -missing-repository
 ```
 
 ## License

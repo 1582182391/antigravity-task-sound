@@ -1,8 +1,8 @@
 {
   "name": "antigravity-task-sound",
   "displayName": "Antigravity Task Sound",
-  "description": "Play sound notifications when Antigravity AI Agent completes a response (CDP-based detection)",
-  "version": "2.1.3",
+  "description": "Play sound notifications when Antigravity AI Agent completes a response. Supports English & Chinese.",
+  "version": "3.0.0",
   "publisher": "1582182391",
   "icon": "icon.png",
   "license": "MIT",
@@ -58,41 +58,48 @@
         "antigravityTaskSound.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "启用/禁用任务完成声音通知"
+          "description": "Enable/disable task completion sound notification"
         },
         "antigravityTaskSound.cdpEnabled": {
           "type": "boolean",
           "default": true,
-          "description": "启用 CDP 协议检测 AI 回复完成（需要 Antigravity 以 --remote-debugging-port 启动）"
+          "description": "Enable CDP protocol to detect AI response completion (requires Antigravity launched with --remote-debugging-port)"
         },
         "antigravityTaskSound.cdpPort": {
           "type": "number",
           "default": 9000,
-          "description": "Antigravity 的远程调试端口（对应启动参数 --remote-debugging-port 的值）"
+          "description": "Antigravity remote debugging port (matches --remote-debugging-port launch argument)"
         },
         "antigravityTaskSound.soundFile": {
           "type": "string",
           "default": "",
-          "description": "自定义音效文件路径（.wav），留空使用内置音效"
+          "description": "Custom sound file path (.wav), leave empty for built-in sound"
         },
         "antigravityTaskSound.volume": {
           "type": "number",
           "default": 50,
           "minimum": 0,
           "maximum": 100,
-          "description": "音量 (0-100)"
+          "description": "Volume (0-100)"
         },
         "antigravityTaskSound.persistentAlert": {
           "type": "boolean",
           "default": false,
-          "description": "持续提醒模式：AI回复完成后循环播放提示音，直到点击弹窗确认"
+          "description": "Persistent alert mode: loops notification sound after AI completes until dismissed"
         },
         "antigravityTaskSound.persistentAlertInterval": {
           "type": "number",
           "default": 2000,
           "minimum": 500,
           "maximum": 10000,
-          "description": "持续提醒模式下的播放间隔（毫秒）"
+          "description": "Playback interval in persistent alert mode (milliseconds)"
+        },
+        "antigravityTaskSound.language": {
+          "type": "string",
+          "default": "zh-CN",
+          "enum": ["zh-CN", "en"],
+          "enumDescriptions": ["中文 (简体)", "English"],
+          "description": "UI language / 界面语言"
         }
       }
     }

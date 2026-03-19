@@ -1,5 +1,6 @@
 import * as http from 'http';
 import * as vscode from 'vscode';
+import { t } from './i18n';
 
 declare const console: any;
 
@@ -154,7 +155,7 @@ export class CdpMonitor {
                     this.log('WebSocket Connected successfully!');
                     this.isRunning = true;
                     this.connectionAttempts = 0;
-                    this.updateStatusText('$(bell) CDP 已连接');
+                    this.updateStatusText(`$(bell) ${t('cdp.connected')}`);
                     this.startPolling();
                     resolve(true);
                 });
@@ -173,7 +174,7 @@ export class CdpMonitor {
                 this.ws.on('close', () => {
                     this.log('WebSocket Disconnected');
                     this.isRunning = false;
-                    this.updateStatusText('$(bell-slash) CDP 断开');
+                    this.updateStatusText(`$(bell-slash) ${t('cdp.disconnected')}`);
                     this.scheduleReconnect();
                 });
 
@@ -222,7 +223,7 @@ export class CdpMonitor {
         this.connectionAttempts++;
         if (this.connectionAttempts > this.maxReconnectAttempts) {
             this.log('Max reconnect attempts reached. Will stop retrying automatically.');
-            this.updateStatusText('$(bell-slash) CDP 连接失败');
+            this.updateStatusText(`$(bell-slash) ${t('cdp.connectFailed')}`);
             return;
         }
         const delay = Math.min(5000 * this.connectionAttempts, 30000);
@@ -320,7 +321,7 @@ export class CdpMonitor {
                 if (!this.generationStarted) {
                     this.generationStarted = true;
                     this.log('AI generation started');
-                    this.updateStatusText('$(loading~spin) AI 生成中...');
+                    this.updateStatusText(`$(loading~spin) ${t('cdp.generating')}`);
                 }
                 this.stopGoneCount = 0;
             } else if (this.generationStarted) {
@@ -329,7 +330,7 @@ export class CdpMonitor {
                     this.log('AI response complete!');
                     this.generationStarted = false;
                     this.stopGoneCount = 0;
-                    this.updateStatusText('$(bell) CDP 已连接');
+                    this.updateStatusText(`$(bell) ${t('cdp.connected')}`);
 
                     if (this.onComplete) {
                         this.onComplete();

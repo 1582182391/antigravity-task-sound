@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { exec } from 'child_process';
 import * as os from 'os';
 import { CdpMonitor } from './cdpMonitor';
+import { t, initLanguage, setLanguage, getLanguage } from './i18n';
 
 declare const console: any;
 
@@ -30,8 +31,11 @@ let isAlertActive = false;
 export function activate(context: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel('Antigravity Task Sound');
     context.subscriptions.push(outputChannel);
+
+    // 初始化语言
+    initLanguage();
     
-    log('Antigravity Task Sound v2.1.1 is now active!');
+    log('Antigravity Task Sound v3.0.0 is now active!');
 
     // 读取初始设置
     const config = vscode.workspace.getConfiguration('antigravityTaskSound');
@@ -55,69 +59,76 @@ export function activate(context: vscode.ExtensionContext) {
             const currentConfig = vscode.workspace.getConfiguration('antigravityTaskSound');
             const currentVolume = currentConfig.get<number>('volume', 50);
             const currentSound = currentConfig.get<string>('soundFile', '');
-            const cdpStatus = cdpMonitor?.isConnected() ? '✅ 已连接' : '❌ 未连接';
+            const cdpStatus = cdpMonitor?.isConnected() ? t('cdp.statusConnected') : t('cdp.statusDisconnected');
+            const lang = getLanguage();
 
             const items: vscode.QuickPickItem[] = [
                 {
-                    label: isEnabled ? '$(bell-slash) 关闭声音通知' : '$(bell) 开启声音通知',
-                    description: `当前：${isEnabled ? '已开启' : '已关闭'}`,
+                    label: isEnabled ? `$(bell-slash) ${t('menu.soundOff')}` : `$(bell) ${t('menu.soundOn')}`,
+                    description: `${isEnabled ? t('menu.currentOn') : t('menu.currentOff')}`,
                 },
                 {
-                    label: isPersistentAlertEnabled ? '$(close) 关闭持续提醒' : '$(megaphone) 开启持续提醒',
-                    description: `当前：${isPersistentAlertEnabled ? '已开启（循环播放直到确认）' : '已关闭（播放一次）'}`,
+                    label: isPersistentAlertEnabled ? `$(close) ${t('menu.persistentOff')}` : `$(megaphone) ${t('menu.persistentOn')}`,
+                    description: `${isPersistentAlertEnabled ? t('menu.persistentDesc.on') : t('menu.persistentDesc.off')}`,
                 },
                 {
-                    label: '$(play) 测试播放',
-                    description: '播放当前设置的提示音',
+                    label: `$(play) ${t('menu.testPlay')}`,
+                    description: t('menu.testPlayDesc'),
                 },
                 {
-                    label: '$(file-media) 切换音效',
-                    description: currentSound ? path.basename(currentSound) : '默认音效',
+                    label: `$(file-media) ${t('menu.switchSound')}`,
+                    description: currentSound ? path.basename(currentSound) : t('menu.defaultSound'),
                 },
                 {
-                    label: '$(settings) 调整音量',
-                    description: `当前：${currentVolume}%`,
+                    label: `$(settings) ${t('menu.adjustVolume')}`,
+                    description: `${currentVolume}%`,
                 },
                 {
-                    label: '$(plug) CDP 连接',
+                    label: `$(plug) ${t('menu.cdpConnect')}`,
                     description: cdpStatus,
+                },
+                {
+                    label: `$(globe) ${t('menu.language')}`,
+                    description: lang === 'zh-CN' ? t('menu.languageDesc.zh') : t('menu.languageDesc.en'),
                 },
             ];
 
             const selected = await vscode.window.showQuickPick(items, {
-                title: '🔔 Antigravity Task Sound 设置',
-                placeHolder: '选择一个操作...',
+                title: t('menu.title'),
+                placeHolder: t('menu.placeholder'),
             });
 
             if (!selected) { return; }
 
             const label = selected.label;
 
-            if (label.includes('关闭声音') || label.includes('开启声音')) {
+            if (label.includes('bell-slash') || label.includes('bell)')) {
                 isEnabled = !isEnabled;
                 currentConfig.update('enabled', isEnabled, vscode.ConfigurationTarget.Global);
                 updateStatusBar();
                 vscode.window.showInformationMessage(
-                    isEnabled ? '🔔 声音通知已开启' : '🔕 声音通知已关闭'
+                    isEnabled ? t('msg.soundEnabled') : t('msg.soundDisabled')
                 );
-            } else if (label.includes('持续提醒')) {
+            } else if (label.includes('close') || label.includes('megaphone')) {
                 isPersistentAlertEnabled = !isPersistentAlertEnabled;
                 currentConfig.update('persistentAlert', isPersistentAlertEnabled, vscode.ConfigurationTarget.Global);
                 updateStatusBar();
                 vscode.window.showInformationMessage(
-                    isPersistentAlertEnabled ? '🔁 持续提醒已开启（完成后循环播放直到确认）' : '🔔 持续提醒已关闭（恢复单次播放）'
+                    isPersistentAlertEnabled ? t('msg.persistentEnabled') : t('msg.persistentDisabled')
                 );
-            } else if (label.includes('测试播放')) {
+            } else if (label.includes('play')) {
                 triggerAlert(context);
-            } else if (label.includes('切换音效')) {
+            } else if (label.includes('file-media')) {
                 await showSoundPicker(context);
-            } else if (label.includes('调整音量')) {
+            } else if (label.includes('settings')) {
                 await showVolumePicker();
-            } else if (label.includes('CDP')) {
+            } else if (label.includes('globe')) {
+                await showLanguagePicker();
+            } else if (label.includes('plug')) {
                 if (cdpMonitor?.isConnected()) {
                     cdpMonitor.disconnect();
                     updateStatusBar();
-                    vscode.window.showInformationMessage('CDP 已断开');
+                    vscode.window.showInformationMessage(t('msg.cdpDisconnected'));
                 } else {
                     const port = currentConfig.get<number>('cdpPort', 9000);
                     if (!cdpMonitor) {
@@ -129,9 +140,9 @@ export function activate(context: vscode.ExtensionContext) {
                     outputChannel.show(true);
                     const connected = await cdpMonitor.connect();
                     if (connected) {
-                        vscode.window.showInformationMessage('✅ CDP 连接成功！');
+                        vscode.window.showInformationMessage(t('msg.cdpConnected'));
                     } else {
-                        vscode.window.showWarningMessage(`❌ CDP 连接失败，详情请看 Output 面板`);
+                        vscode.window.showWarningMessage(t('msg.cdpFailed'));
                     }
                 }
             }
@@ -153,7 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
                 .update('enabled', isEnabled, vscode.ConfigurationTarget.Global);
             updateStatusBar();
             vscode.window.showInformationMessage(
-                isEnabled ? '🔔 任务声音通知已开启' : '🔕 任务声音通知已关闭'
+                isEnabled ? t('msg.soundEnabled') : t('msg.soundDisabled')
             );
         })
     );
@@ -171,9 +182,9 @@ export function activate(context: vscode.ExtensionContext) {
             outputChannel.show(true);
             const connected = await cdpMonitor.connect();
             if (connected) {
-                vscode.window.showInformationMessage('✅ CDP 连接成功！');
+                vscode.window.showInformationMessage(t('msg.cdpConnected'));
             } else {
-                vscode.window.showWarningMessage(`❌ CDP 连接失败，详情请看 Output 面板`);
+                vscode.window.showWarningMessage(t('msg.cdpFailed'));
             }
         })
     );
@@ -197,6 +208,13 @@ export function activate(context: vscode.ExtensionContext) {
                 if (cdpMonitor) {
                     cdpMonitor.updatePort(newPort);
                 }
+            }
+            if (e.affectsConfiguration('antigravityTaskSound.language')) {
+                const newLang = vscode.workspace.getConfiguration('antigravityTaskSound')
+                    .get<string>('language', 'zh-CN') as 'zh-CN' | 'en';
+                setLanguage(newLang);
+                updateStatusBar();
+                vscode.window.showInformationMessage(t('msg.languageChanged'));
             }
         })
     );
@@ -234,6 +252,39 @@ export function activate(context: vscode.ExtensionContext) {
     }
 }
 
+// ======== 语言选择器 ========
+async function showLanguagePicker() {
+    const currentLang = getLanguage();
+    const items: vscode.QuickPickItem[] = [
+        {
+            label: currentLang === 'zh-CN' ? '$(check) 中文 (简体)' : '中文 (简体)',
+            description: 'Chinese Simplified',
+            detail: 'zh-CN',
+        },
+        {
+            label: currentLang === 'en' ? '$(check) English' : 'English',
+            description: 'English',
+            detail: 'en',
+        },
+    ];
+
+    const selected = await vscode.window.showQuickPick(items, {
+        title: '🌐 Language / 语言',
+        placeHolder: 'Select language / 选择语言',
+    });
+
+    if (selected && selected.detail) {
+        const newLang = selected.detail as 'zh-CN' | 'en';
+        if (newLang !== currentLang) {
+            setLanguage(newLang);
+            await vscode.workspace.getConfiguration('antigravityTaskSound')
+                .update('language', newLang, vscode.ConfigurationTarget.Global);
+            updateStatusBar();
+            vscode.window.showInformationMessage(t('msg.languageChanged'));
+        }
+    }
+}
+
 // ======== 音效选择器 ========
 async function showSoundPicker(context: vscode.ExtensionContext) {
     const soundsDir = path.join(context.extensionPath, 'sounds');
@@ -255,50 +306,50 @@ async function showSoundPicker(context: vscode.ExtensionContext) {
     }));
 
     items.push({
-        label: '$(folder-opened) 选择自定义文件...',
-        description: '从电脑中选择 .wav 文件',
+        label: `$(folder-opened) ${t('soundPicker.customFile')}`,
+        description: t('soundPicker.customFileDesc'),
     });
 
     const selected = await vscode.window.showQuickPick(items, {
-        title: '🎵 选择提示音效',
-        placeHolder: '选择一个内置音效或自定义文件',
+        title: t('soundPicker.title'),
+        placeHolder: t('soundPicker.placeholder'),
     });
 
     if (!selected) { return; }
 
-    if (selected.label.includes('自定义文件')) {
+    if (selected.label.includes('folder-opened')) {
         const uris = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectMany: false,
-            filters: { '音效文件': ['wav'] },
-            title: '选择 WAV 音效文件',
+            filters: { [t('soundPicker.filter')]: ['wav'] },
+            title: t('soundPicker.dialogTitle'),
         });
         if (uris && uris.length > 0) {
             const filePath = uris[0].fsPath;
             await vscode.workspace.getConfiguration('antigravityTaskSound')
                 .update('soundFile', filePath, vscode.ConfigurationTarget.Global);
-            vscode.window.showInformationMessage(`🎵 音效已更换为：${path.basename(filePath)}`);
+            vscode.window.showInformationMessage(`${t('msg.soundChanged')}${path.basename(filePath)}`);
         }
     } else if (selected.detail) {
         await vscode.workspace.getConfiguration('antigravityTaskSound')
             .update('soundFile', selected.detail, vscode.ConfigurationTarget.Global);
-        vscode.window.showInformationMessage(`🎵 音效已更换为：${selected.description}`);
+        vscode.window.showInformationMessage(`${t('msg.soundChanged')}${selected.description}`);
     }
 }
 
 // ======== 音量选择器 ========
 async function showVolumePicker() {
     const items: vscode.QuickPickItem[] = [
-        { label: '🔈 20%', description: '很安静' },
-        { label: '🔉 40%', description: '较安静' },
-        { label: '🔊 50%', description: '适中（默认）' },
-        { label: '🔊 70%', description: '较大声' },
-        { label: '🔊 100%', description: '最大声' },
+        { label: '🔈 20%', description: t('volume.20') },
+        { label: '🔉 40%', description: t('volume.40') },
+        { label: '🔊 50%', description: t('volume.50') },
+        { label: '🔊 70%', description: t('volume.70') },
+        { label: '🔊 100%', description: t('volume.100') },
     ];
 
     const selected = await vscode.window.showQuickPick(items, {
-        title: '🔊 调整音量',
-        placeHolder: '选择音量等级',
+        title: t('volume.title'),
+        placeHolder: t('volume.placeholder'),
     });
 
     if (selected) {
@@ -307,7 +358,7 @@ async function showVolumePicker() {
             const vol = parseInt(match[1], 10);
             await vscode.workspace.getConfiguration('antigravityTaskSound')
                 .update('volume', vol, vscode.ConfigurationTarget.Global);
-            vscode.window.showInformationMessage(`🔊 音量已设为 ${vol}%`);
+            vscode.window.showInformationMessage(`${t('msg.volumeSet')}${vol}%`);
         }
     }
 }
@@ -340,9 +391,9 @@ async function playPersistentAlert(context: vscode.ExtensionContext) {
 
     // 弹出模态对话框（会阻塞直到用户点击）
     await vscode.window.showInformationMessage(
-        '🔔 AI 任务已完成！',
-        { modal: true, detail: '点击确定停止提示音' },
-        '确定'
+        t('msg.taskComplete'),
+        { modal: true, detail: t('msg.taskCompleteDetail') },
+        t('msg.confirm')
     );
 
     // 用户点击后停止循环
@@ -363,20 +414,19 @@ function updateStatusBar() {
     if (cdpMonitor?.isConnected()) {
         text = isEnabled ? '$(bell) CDP' : '$(bell-slash) CDP';
     } else {
-        text = isEnabled ? '$(bell) 声音' : '$(bell-slash) 声音';
+        text = isEnabled ? `$(bell) ${t('statusBar.sound')}` : `$(bell-slash) ${t('statusBar.sound')}`;
     }
     if (isPersistentAlertEnabled) {
         text += ' 🔁';
     }
     
-    // 增加版本号显示
-    text += ' v2.1.3';
+    text += ' v3.0.0';
     
     statusBarItem.text = text;
     statusBarItem.tooltip = [
-        `声音通知：${isEnabled ? '已开启' : '已关闭'}`,
-        `持续提醒：${isPersistentAlertEnabled ? '已开启' : '已关闭'}`,
-        '点击打开设置菜单'
+        `${t('statusBar.tooltip.sound')}：${isEnabled ? t('statusBar.tooltip.enabled') : t('statusBar.tooltip.disabled')}`,
+        `${t('statusBar.tooltip.persistent')}：${isPersistentAlertEnabled ? t('statusBar.tooltip.enabled') : t('statusBar.tooltip.disabled')}`,
+        t('statusBar.tooltip.clickToOpen')
     ].join('\n');
 }
 
