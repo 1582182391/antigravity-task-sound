@@ -9,11 +9,17 @@ declare const console: any;
  * 通过 WebSocket 连接 Antigravity 的调试端口，监听 AI 回复状态
  */
 
-// 停止按钮检测脚本（借鉴 Remoat 的方案）
-const STOP_BUTTON_SCRIPT = `(() => {
+// ============================================================
+// 综合检测脚本：停止按钮 + 交互式提示框（如 "Run command?"）
+// Combined detection script: Stop button + interactive prompt boxes
+// 借鉴 Remoat 的方案，并扩展为多类型提示框识别
+// ============================================================
+const DETECTION_SCRIPT = `(() => {
     const panel = document.querySelector('.antigravity-agent-side-panel');
     const scopes = [panel, document].filter(Boolean);
 
+    // ---- 工具函数：判断元素是否可见 ----
+    // Utility: check if an element is visible on screen
     const isVisible = (el) => {
         if (!el) return false;
         const style = window.getComputedStyle(el);
@@ -22,34 +28,162 @@ const STOP_BUTTON_SCRIPT = `(() => {
         return rect.width > 0 && rect.height > 0;
     };
 
-    // 方法1: tooltip-id 检测（需可见）
+    // ---- 文本规范化函数 ----
+    // Normalize text: lowercase, collapse whitespace, trim
+    const normalize = (value) => (value || '').toLowerCase().replace(/\\\\s+/g, ' ').trim();
+
+    // ---- 提取按钮的所有可识别标签文本 ----
+    // Extract all recognizable label texts from a button element
+    const getLabels = (btn) => [
+        btn.textContent || '',
+        btn.getAttribute('aria-label') || '',
+        btn.getAttribute('title') || '',
+    ];
+
+    // ============================================================
+    // 第一部分：停止按钮检测（isGenerating）
+    // Part 1: Stop button detection
+    // ============================================================
+    let isGenerating = false;
+
+    // 方法1: tooltip-id 精确检测（需可见）
     for (const scope of scopes) {
         const el = scope.querySelector('[data-tooltip-id="input-send-button-cancel-tooltip"]');
-        if (el && isVisible(el)) return { isGenerating: true };
+        if (el && isVisible(el)) { isGenerating = true; break; }
     }
 
-    // 方法2: 按钮文本检测（需可见）
-    const normalize = (value) => (value || '').toLowerCase().replace(/\\\\s+/g, ' ').trim();
-    const STOP_PATTERNS = [/^stop$/, /^stop generating$/, /^stop response$/, /^停止$/];
-    const isStopLabel = (value) => {
-        const n = normalize(value);
-        return n ? STOP_PATTERNS.some((re) => re.test(n)) : false;
-    };
-    for (const scope of scopes) {
-        const buttons = scope.querySelectorAll('button, [role="button"]');
-        for (let i = 0; i < buttons.length; i++) {
-            const btn = buttons[i];
-            if (!isVisible(btn)) continue;
-            const labels = [
-                btn.textContent || '',
-                btn.getAttribute('aria-label') || '',
-                btn.getAttribute('title') || '',
-            ];
-            if (labels.some(isStopLabel)) return { isGenerating: true };
+    // 方法2: 按钮文本模式匹配（需可见）
+    if (!isGenerating) {
+        const STOP_PATTERNS = [/^stop$/, /^stop generating$/, /^stop response$/, /^停止$/];
+        const isStopLabel = (value) => {
+            const n = normalize(value);
+            return n ? STOP_PATTERNS.some((re) => re.test(n)) : false;
+        };
+        for (const scope of scopes) {
+            const buttons = scope.querySelectorAll('button, [role="button"]');
+            for (let i = 0; i < buttons.length; i++) {
+                const btn = buttons[i];
+                if (!isVisible(btn)) continue;
+                if (getLabels(btn).some(isStopLabel)) { isGenerating = true; break; }
+            }
+            if (isGenerating) break;
         }
     }
 
-    return { isGenerating: false };
+    // ============================================================
+    // 第二部分：交互式提示框检测（hasPrompt）
+    // Part 2: Interactive prompt/dialog detection
+    // 提示框的内容可能会变化，因此不依赖固定的文本，
+    // 而是通过按钮上的操作性关键词进行启发式匹配。
+    // ============================================================
+    let hasPrompt = false;
+
+    // 提示框动作按钮的特征正则（覆盖中英文常见操作词）
+    // Heuristic patterns for action buttons typically found in prompt dialogs
+    const PROMPT_ACTION_PATTERNS = [
+        /^reject$/,                  // "Reject" 按钮
+        /^run\\b/,                    // "Run" / "Run Alt+↵" 等
+        /^allow/,                    // "Allow" 按钮
+        /^deny/,                     // "Deny" 按钮
+        /^cancel$/,                  // "Cancel" 按钮（独立出现时）
+        /^拒绝$/,                    // 中文 "拒绝"
+        /^运行/,                     // 中文 "运行"
+        /^允许/,                     // 中文 "允许"
+        /^执行/,                     // 中文 "执行"
+    ];
+
+    // 辅助文本特征：这些文本通常伴随提示框一起出现
+    // Auxiliary text patterns that accompany prompt dialogs
+    const PROMPT_CONTEXT_PATTERNS = [
+        /ask every time/i,           // "Ask every time" 复选框/链接
+        /每次询问/i,                 // 中文对应
+        /run command/i,              // "Run command?" 提示文本
+        /执行命令/i,                 // 中文对应
+        /waiting/i,                  // "Waiting.." 状态文本
+    ];
+
+    const isPromptAction = (value) => {
+        const n = normalize(value);
+        return n ? PROMPT_ACTION_PATTERNS.some((re) => re.test(n)) : false;
+    };
+
+    // 在每个作用域中扫描可见的按钮，检查是否存在提示框特征
+    // Scan visible buttons in each scope for prompt-like action labels
+    for (const scope of scopes) {
+        if (hasPrompt) break;
+        const buttons = scope.querySelectorAll('button, [role="button"]');
+        let rejectFound = false;
+        let runFound = false;
+        for (let i = 0; i < buttons.length; i++) {
+            const btn = buttons[i];
+            if (!isVisible(btn)) continue;
+            const labels = getLabels(btn);
+            for (const label of labels) {
+                const n = normalize(label);
+                if (!n) continue;
+                // 同时存在 Reject 和 Run 类按钮 → 高置信度判定为提示框
+                if (/^reject$/.test(n) || /^拒绝$/.test(n)) rejectFound = true;
+                if (/^run\\b/.test(n) || /^运行/.test(n) || /^执行/.test(n) || /^allow/.test(n) || /^允许/.test(n)) runFound = true;
+            }
+        }
+        // 同时存在拒绝和执行按钮 → 确认为提示框
+        // Both reject and action buttons present → confirmed prompt dialog
+        if (rejectFound && runFound) { hasPrompt = true; }
+    }
+
+    // 降级检测：如果按钮组合未命中，检查是否存在辅助文本特征
+    // Fallback: check for auxiliary context text if button combo didn't match
+    if (!hasPrompt) {
+        for (const scope of scopes) {
+            if (hasPrompt) break;
+            // 查找所有文本节点中是否包含提示框的上下文关键词
+            const allText = scope.innerText || scope.textContent || '';
+            const hasContextText = PROMPT_CONTEXT_PATTERNS.some((re) => re.test(allText));
+            if (hasContextText) {
+                // 再确认是否同时存在至少一个提示框动作按钮
+                const buttons = scope.querySelectorAll('button, [role="button"]');
+                for (let i = 0; i < buttons.length; i++) {
+                    const btn = buttons[i];
+                    if (!isVisible(btn)) continue;
+                    if (getLabels(btn).some(isPromptAction)) {
+                        hasPrompt = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    // 第三检测路径：检测 "Waiting." / "Waiting.." / "Waiting..." 动画文本
+    // Path 3: Detect animated "Waiting." text (dots cycle: '.', '..', '...')
+    // 这是一个独立的强信号，出现即代表 AI 正在等待用户操作
+    // ============================================================
+    if (!hasPrompt) {
+        // 匹配 "Waiting" 后跟 1~3 个点（    覆盖动画的所有帧）
+        // Match "Waiting" followed by 1-3 dots (covers all animation frames)
+        const WAITING_PATTERN = /\\bwaiting\\.{1,3}$/i;
+        // 中文对应："等待中." / "等待中.." / "等待中..."
+        const WAITING_PATTERN_ZH = /等待中\\.{1,3}$/;
+        for (const scope of scopes) {
+            if (hasPrompt) break;
+            // 遍历所有可能包含 "Waiting." 文本的元素
+            // Scan elements that might contain the "Waiting." text
+            const candidates = scope.querySelectorAll('span, p, div, label, [class*="status"], [class*="waiting"]');
+            for (let i = 0; i < candidates.length; i++) {
+                const el = candidates[i];
+                if (!isVisible(el)) continue;
+                const txt = (el.textContent || '').trim();
+                if (txt.length > 30) continue; // 排除长文本，"Waiting." 通常很短
+                if (WAITING_PATTERN.test(txt) || WAITING_PATTERN_ZH.test(txt)) {
+                    hasPrompt = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    return { isGenerating: isGenerating, hasPrompt: hasPrompt };
 })()`;
 
 interface CdpTarget {
@@ -71,6 +205,9 @@ export class CdpMonitor {
     private stopGoneCount = 0;
     private readonly stopGoneConfirmCount = 3;
     private readonly pollIntervalMs = 2000;
+    // 提示框状态标志：用于边缘触发，仅在提示框首次出现时通知
+    // Prompt state flag: edge-triggered, fires only on rising edge
+    private promptActive = false;
     private port: number;
     private onComplete: (() => void) | null = null;
     private statusBarItem: vscode.StatusBarItem | null = null;
@@ -341,14 +478,19 @@ export class CdpMonitor {
 
     private async poll() {
         try {
+            // 使用综合检测脚本，同时获取 isGenerating 和 hasPrompt 状态
+            // Execute combined detection script to get both states
             const result = await this.sendCommand('Runtime.evaluate', {
-                expression: STOP_BUTTON_SCRIPT,
+                expression: DETECTION_SCRIPT,
                 returnByValue: true,
             });
 
             const value = result?.result?.value;
             const isGenerating = value?.isGenerating === true;
+            const hasPrompt = value?.hasPrompt === true;
 
+            // ---- 处理停止按钮状态（AI 正在生成 → 生成完毕）----
+            // Handle stop button state transitions (generating → complete)
             if (isGenerating) {
                 if (!this.generationStarted) {
                     this.generationStarted = true;
@@ -369,9 +511,30 @@ export class CdpMonitor {
                     }
                 }
             }
+
+            // ---- 处理提示框状态（边缘触发：仅在首次出现时通知）----
+            // Handle prompt state with edge detection: notify only on rising edge
+            if (hasPrompt && !this.promptActive) {
+                // 提示框首次出现 → 触发通知
+                // Prompt just appeared → fire notification
+                this.promptActive = true;
+                this.log('Interactive prompt detected! (e.g. Run command / Allow / etc.)');
+                this.updateStatusText(`$(bell-dot) ${t('cdp.promptDetected')}`);
+                if (this.onComplete) {
+                    this.onComplete();
+                }
+            } else if (!hasPrompt && this.promptActive) {
+                // 提示框已消失 → 重置状态，为下次检测做好准备
+                // Prompt dismissed → reset state for next detection
+                this.promptActive = false;
+                this.log('Prompt dismissed, state reset.');
+                if (this.isRunning && !isGenerating) {
+                    this.updateStatusText(`$(bell) ${t('cdp.connected')}`);
+                }
+            }
         } catch (err) {
             // CDP 偶尔命令超时是正常的，不输出大段错误
-            // console.error('[TaskSound:CDP] Poll error:', err);
+            // Occasional CDP command timeouts are normal, suppress verbose logs
         }
     }
 }

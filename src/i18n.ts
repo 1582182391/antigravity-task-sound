@@ -83,6 +83,7 @@ const zhCN: Translations = {
     'cdp.disconnected': 'CDP 断开',
     'cdp.connectFailed': 'CDP 连接失败',
     'cdp.generating': 'AI 生成中...',
+    'cdp.promptDetected': '检测到提示框',
     'cdp.statusConnected': '✅ 已连接',
     'cdp.statusDisconnected': '❌ 未连接',
 
@@ -170,6 +171,7 @@ const en: Translations = {
     'cdp.disconnected': 'CDP Disconnected',
     'cdp.connectFailed': 'CDP Connection Failed',
     'cdp.generating': 'AI Generating...',
+    'cdp.promptDetected': 'Prompt Detected',
     'cdp.statusConnected': '✅ Connected',
     'cdp.statusDisconnected': '❌ Disconnected',
 
