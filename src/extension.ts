@@ -6,7 +6,8 @@ import * as os from 'os';
 import { CdpMonitor } from './cdpMonitor';
 import { t, initLanguage, setLanguage, getLanguage } from './i18n';
 
-declare const console: any;
+
+
 
 let statusBarItem: vscode.StatusBarItem;
 let isEnabled = true;
@@ -40,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 初始化语言
     initLanguage();
-    
+
     log('Antigravity Task Sound v4.0.0 is now active!');
 
     // 读取初始设置
@@ -190,7 +191,7 @@ export function activate(context: vscode.ExtensionContext) {
                 if (isEnabled) { triggerAlert(context); }
             }, outputChannel, getWindowTitle());
             cdpMonitor.setStatusBar(statusBarItem);
-            
+
             outputChannel.show(true);
             const connected = await cdpMonitor.connect();
             if (connected) {
@@ -499,9 +500,9 @@ function updateStatusBar() {
     if (isPersistentAlertEnabled) {
         text += ' 🔁';
     }
-    
+
     text += ' v4.0.0';
-    
+
     statusBarItem.text = text;
     statusBarItem.tooltip = [
         `${t('statusBar.tooltip.sound')}：${isEnabled ? t('statusBar.tooltip.enabled') : t('statusBar.tooltip.disabled')}`,
